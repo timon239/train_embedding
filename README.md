@@ -52,16 +52,19 @@ Ein Script, zwei Modi — gesteuert durch `CONFIG` ganz oben:
 ```python
 CONFIG = {
     "model_name": "intfloat/multilingual-e5-small",
-    "output_path": "models/mein_modell",
+    "output_path": "models/V2",
     "task": "simcse",                   # "simcse" oder "classifier"
-    "data_path": "data/processed/sentences.txt",
+    "data_path": "data/knowledge/processed/sentences.txt",
     "data_delimiter": "\t",
-    "batch_size": 16,
-    "epochs": 3,
+    "batch_size": 64,
+    "epochs": 1,
     "learning_rate": 2e-5,
-    "max_seq_length": 128,
+    "weight_decay": 0.01,
     "warmup_ratio": 0.1,
-    "device": "auto",
+    "max_seq_length": 128,
+    "contrastive_scale": 10,
+    "classifier_method": "mlp",         # "mlp", "logistic", "rf"
+    "device": "cpu",
 }
 ```
 
@@ -69,8 +72,8 @@ CONFIG = {
 Contrastive Learning: gleicher Satz, zweimal encoded, verschiedene Dropout-Masken.
 → Output: angepasstes Embedding-Modell
 
-**Task `classifier`** — Klassifikation auf Embeddings.
-Extrahiert Embeddings → LogisticRegression → speichert Classifier.
+**Task `classifier`** — Klassifikation auf Embeddings (schnell, ~50% Genauigkeit).
+Extrahiert Embeddings → MLP/LogisticRegression → speichert Classifier.
 → Output: `classifier.joblib`
 
 **Parameter:**
@@ -82,14 +85,14 @@ Extrahiert Embeddings → LogisticRegression → speichert Classifier.
 | `task` | `"simcse"` / `"classifier"` | `simcse` | Trainingsart |
 | `data_path` | Pfad | — | SimCSE: Satz/Zeile. Classifier: satz\\tlabel |
 | `data_delimiter` | String | `\t` | Trennzeichen für Classifier |
-| `batch_size` | 4–128 | `32` | Grösser = mehr Negative im Contrastive Loss (simcse) |
-| `epochs` | 1–3 | `1` | SimCSE: 1 reicht. Classifier: 1 (classifier trainiert selbst) |
+| `batch_size` | 4–128 | `32` | Grösser = mehr Negative (simcse) |
+| `epochs` | 1–3 | `1` | SimCSE: 1 reicht |
 | `learning_rate` | 1e-6 – 5e-5 | `2e-5` | Schrittgrösse |
-| `weight_decay` | 0.0–0.1 | `0.01` | Bestrafung grosser Gewichte → verhindert Collapse |
+| `weight_decay` | 0.0–0.1 | `0.01` | Verhindert Overfitting |
 | `warmup_ratio` | 0.0–0.5 | `0.1` | LR-Aufwärmphase |
 | `max_seq_length` | 64–512 | `128` | Token-Limit pro Satz |
-| `contrastive_scale` | 1.0–50.0 | `10` | Schärfe des Contrastive Loss. Nur für simcse. |
-| `classifier_method` | `"mlp"` / `"logistic"` / `"rf"` | `"mlp"` | Classifier-Typ. MLP = beste Qualität. |
+| `contrastive_scale` | 1.0–50.0 | `10` | Schärfe des Contrastive Loss |
+| `classifier_method` | `"mlp"`/`"logistic"`/`"rf"` | `"mlp"` | Classifier-Typ |
 | `device` | `"auto"`/`"mps"`/`"cpu"` | `auto` | MPS = Apple GPU |
 
 ### `translate.py`
@@ -103,7 +106,30 @@ python3 scripts/translate.py
 Konfiguration oben: `INPUT_PATH`, `OUTPUT_PATH`, `TEXT_COLUMN`, `MODEL_NAME`.
 Standard: `Helsinki-NLP/opus-mt-en-de` (EN→DE).
 
+### `text_classifier.py`
+
+End-to-End Text-Klassifikation mit bert-base-german-cased.
+Lokal, einfach, genau. Erreicht ~75% auf Bloom-Taxonomie.
+
+```bash
+# Trainieren
+python3 scripts/text_classifier.py --train
+
+# Vorhersage
+python3 scripts/text_classifier.py --predict "Dein Text hier"
+```
+
+**Parameter** (oben im Script via `CONFIG`): `data_path`, `model_name`,
+`num_labels`, `epochs`, `batch_size`, `learning_rate`, `label_names`.
+
+| Ansatz | Genauigkeit | Geschwindigkeit | Script |
+|--------|-------------|-----------------|--------|
+| Embedding + MLP | ~52% | ⚡ Sekunden | `train_embedding.py` |
+| End-to-End BERT | **~75%** | 🐢 Minuten | `text_classifier.py` |
+
 ---
+
+## Modell-Versionierung (Beispiel)
 
 ## Modell-Versionierung (Beispiel)
 
