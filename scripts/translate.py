@@ -14,13 +14,13 @@ Unterstützt jedes HuggingFace-Übersetzungsmodell, z.B.:
 # ============================================================
 # KONFIGURATION
 # ============================================================
-INPUT_PATH = "data/translate/input.csv"           # Quelldatei
-OUTPUT_PATH = "data/translate/output.csv"         # Ergebnisdatei
-CHECKPOINT_PATH = "data/translate/_checkpoint.txt" # Fortschritt (bei Abbruch)
+INPUT_PATH = "data/blooms/raw/en_bloom.csv"
+OUTPUT_PATH = "data/blooms/translated/de_bloom.csv"
+CHECKPOINT_PATH = "data/blooms/translated/_checkpoint.txt"
 
-TEXT_COLUMN = "text"                               # Spalte mit Ausgangstext
-TRANSLATED_COLUMN = "text_de"                      # Spaltenname für Übersetzung
-KEEP_COLUMNS = True                                # Alle anderen Spalten übernehmen
+TEXT_COLUMN = "Questions"
+TRANSLATED_COLUMN = "text_de"
+KEEP_COLUMNS = True
 
 MODEL_NAME = "Helsinki-NLP/opus-mt-en-de"         # Übersetzungsmodell
 BATCH_SIZE = 32                                    # Sätze pro Batch
@@ -32,7 +32,7 @@ import csv
 import logging
 import time
 from datetime import datetime
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import MarianTokenizer, MarianMTModel
 import torch
 from tqdm import tqdm
 
@@ -82,8 +82,8 @@ def main():
 
     log.info(f"Noch zu übersetzen: {len(pending)} Sätze")
     log.info(f"Lade Modell {MODEL_NAME} …")
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+    tokenizer = MarianTokenizer.from_pretrained(MODEL_NAME)
+    model = MarianMTModel.from_pretrained(MODEL_NAME)
     device = torch.device(DEVICE) if DEVICE == "mps" else torch.device("cpu")
     model.to(device)
     model.eval()
@@ -128,6 +128,21 @@ def main():
             writer.writerow(row)
 
     log.info(f"Gespeichert: {OUTPUT_PATH}")
+
+    # Classifier-Format schreiben: text_de\tlabel
+    CLASSIFIER_PATH = OUTPUT_PATH.replace(".csv", "_classifier.txt")
+    label_map = {"BT1": 0, "BT2": 1, "BT3": 2, "BT4": 3, "BT5": 4, "BT6": 5}
+    with open(CLASSIFIER_PATH, "w", encoding="utf-8") as f:
+        n_written = 0
+        for idx, row in enumerate(rows):
+            de_text = translations.get(idx, "").strip()
+            if de_text:
+                cat = row.get("Category", "BT1")
+                label = label_map.get(cat, 0)
+                f.write(f"{de_text}\t{label}\n")
+                n_written += 1
+    log.info(f"Classifier-Format: {CLASSIFIER_PATH} ({n_written} Zeilen)")
+
     if os.path.exists(CHECKPOINT_PATH):
         os.remove(CHECKPOINT_PATH)
     log.info(f"Fertig. {len(translations)} Sätze übersetzt in "

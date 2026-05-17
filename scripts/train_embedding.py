@@ -17,32 +17,33 @@ Modell und Dataset sind durch CONFIG vollständig austauschbar.
 # KONFIGURATION — alles was du brauchst, hier anpassen
 # ============================================================
 CONFIG = {
-    # --- Modell ---
-    "model_name": "intfloat/multilingual-e5-small",
-    "output_path": "models/mein_modell",
+    # --- Modell (V2 als Basis für Classifier) ---
+    "model_name": "models/V2",
+    "output_path": "models/V2BC_mlp",
 
     # --- Task ---
-    # "simcse"       → Embedding-Training (unlabelierte Sätze)
-    # "classifier"   → Klassifikation (labelierte Sätze)
-    "task": "simcse",
+    "task": "classifier",
 
     # --- Daten ---
-    "data_path": "data/knowledge/processed/sentences.txt",
-    "data_delimiter": "\t",           # für classification: satz<TAB>label
+    "data_path": "data/blooms/translated/de_bloom_classifier.txt",
+    "data_delimiter": "\t",
 
     # --- Hyperparameter ---
-    "batch_size": 32,
+    "batch_size": 64,
     "epochs": 1,
-    "learning_rate": 1e-5,
-    "weight_decay": 0.01,             # Verhindert Overfitting/Collapse
+    "learning_rate": 2e-5,
+    "weight_decay": 0.01,
     "warmup_ratio": 0.1,
     "max_seq_length": 128,
 
-    # --- Contrastive Loss ---
-    "contrastive_scale": 5.0,         # Default 20.0 → weicher = weniger Collapse
+    # --- Classifier (für task: classifier) ---
+    "classifier_method": "mlp",
+
+    # --- Contrastive Loss (nur für simcse relevant) ---
+    "contrastive_scale": 10,
 
     # --- Hardware ---
-    "device": "auto",                 # "auto", "mps", "cpu"
+    "device": "cpu",
 }
 
 import os
@@ -243,11 +244,28 @@ def train_classifier(model: SentenceTransformer, cfg: dict):
     embeddings = np.vstack(embeddings)
     logger.info(f"      Embeddings: {embeddings.shape}")
 
-    # Einfaches sklearn-Modell
+    # Classifier nach Konfiguration
     from sklearn.linear_model import LogisticRegression
+    from sklearn.neural_network import MLPClassifier
+    from sklearn.ensemble import RandomForestClassifier
     from sklearn.model_selection import cross_val_score
 
-    clf = LogisticRegression(max_iter=1000, multi_class="multinomial")
+    method = cfg.get("classifier_method", "logistic")
+    if method == "logistic":
+        clf = LogisticRegression(max_iter=2000, class_weight="balanced")
+    elif method == "mlp":
+        clf = MLPClassifier(
+            hidden_layer_sizes=(256, 128), max_iter=2000,
+            early_stopping=True, random_state=42
+        )
+    elif method == "rf":
+        clf = RandomForestClassifier(
+            n_estimators=200, class_weight="balanced", random_state=42
+        )
+    else:
+        raise ValueError(f"Unbekannte Classifier-Methode: {method}")
+
+    logger.info(f"      Classifier: {type(clf).__name__}")
     scores = cross_val_score(clf, embeddings, labels, cv=min(5, len(set(labels))))
     logger.info(f"      Cross-Validation Accuracy: {scores.mean():.3f} (+/- {scores.std():.3f})")
 

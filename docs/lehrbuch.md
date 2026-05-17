@@ -82,7 +82,8 @@ CONFIG = {
 | `weight_decay` | 0.0–0.1 | `0.01` | Bestrafung grosser Gewichte → verhindert Collapse |
 | `warmup_ratio` | 0.0–0.5 | `0.1` | LR-Aufwärmphase |
 | `max_seq_length` | 64–512 | `128` | Token-Limit pro Satz |
-| `contrastive_scale` | 1.0–50.0 | `5.0` | Schärfe des Contrastive Loss. Höher = aggressiver. Default 20.0 |
+| `contrastive_scale` | 1.0–50.0 | `10` | Schärfe des Contrastive Loss. Nur für simcse. |
+| `classifier_method` | `"mlp"` / `"logistic"` / `"rf"` | `"mlp"` | Classifier-Typ. MLP = beste Qualität, Logistic = schnell, RF = robust. |
 | `device` | `"auto"`/`"mps"`/`"cpu"` | `auto` | MPS = Apple GPU |
 
 ### Schritt 2: Daten übersetzen (optional)
