@@ -7,6 +7,10 @@ data/**
 models/
 my_vault_embedding/
 
+# ── Virtual environments ──
+venv/
+.venv/
+
 # ── Training logs ──
 logs/
 *.log
@@ -20,12 +24,6 @@ __pycache__/
 dist/
 build/
 *.egg
-
-# ── Virtual environments ──
-venv/
-.venv/
-env/
-.env
 
 # ── IDE ──
 .idea/

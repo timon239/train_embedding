@@ -13,7 +13,7 @@ Unterstützt aktuell:
 # ============================================================
 # KONFIGURATION — hier anpassen
 # ============================================================
-INPUT_DIR = "data/knowledge/raw/*"              # Wo liegen die .md-Dateien?
+INPUT_DIR = "data/knowledge/raw/"              # Wo liegen die .md-Dateien?
 OUTPUT_SIMCSE = "data/knowledge/processed/sentences.txt"  # Ausgabe für SimCSE-Training
 MIN_SENTENCE_LENGTH = 5            # Mindest-Wörter pro Satz
 MAX_SENTENCE_LENGTH = 80           # Maximal-Wörter pro Satz (längere werden gesplittet)

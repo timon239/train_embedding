@@ -53,9 +53,10 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from sentence_transformers.sentence_transformer.losses import (
-    MultipleNegativesRankingLoss,
-)
+try:
+    from sentence_transformers.sentence_transformer.losses import MultipleNegativesRankingLoss
+except ModuleNotFoundError:
+    from sentence_transformers.losses import MultipleNegativesRankingLoss
 from tqdm import tqdm
 
 
