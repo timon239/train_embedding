@@ -142,14 +142,70 @@ Basis-Modell (z.B. e5-small)
 
 ---
 
-## 5. Unterstützte Modelle
+## 5. Monitoring & Logs
 
-| HuggingFace ID | Parameter | Dim | RAM |
-|----------------|-----------|-----|-----|
-| `intfloat/multilingual-e5-small` | 118 M | 384 | ~450 MB |
-| `intfloat/multilingual-e5-base` | 278 M | 768 | ~1.1 GB |
-| `jinaai/jina-embeddings-v2-base-de` | 137 M | 768 | ~500 MB |
-| `paraphrase-multilingual-MiniLM-L12-v2` | 117 M | 384 | ~420 MB |
+Jeder Trainingslauf schreibt ein Log nach `logs/train_YYYYMMDD_HHMMSS.log`.
+
+### Live verfolgen
+
+```bash
+# Terminal 1: Training laufen lassen
+python3 scripts/train_embedding.py
+
+# Terminal 2: Log live anzeigen
+tail -f logs/train_*.log
+```
+
+### Log-Ablauf SimCSE
+
+```
+14:30:01 | >>> SIMCSE-TRAINING
+14:30:01 |       Modell: intfloat/multilingual-e5-small
+14:30:01 |       Device: mps | 2365 Batches/Epoche
+14:30:01 |       Start: 14:30
+14:31:05 | Epoch 1, Batch 100/2365: Loss=0.0421 | 19.2 Bat/s | ETA: 14:52
+14:32:09 | Epoch 1, Batch 200/2365: Loss=0.0312 | 19.5 Bat/s | ETA: 14:52
+14:35:12 | Epoch 1 abgeschlossen: Avg Loss = 0.0412
+14:40:18 | Epoch 2 abgeschlossen: Avg Loss = 0.0083
+14:45:22 | Epoch 3 abgeschlossen: Avg Loss = 0.0047
+14:45:22 | Modell gespeichert: models/mein_modell
+```
+
+**Spalten im Log:**
+- `Loss`: Aktueller Batch-Verlust (sollte Epoche für Epoche fallen)
+- `Bat/s`: Verarbeitete Batches pro Sekunde
+- `ETA`: Geschätzte Fertigstellungszeit dieser Epoche
+
+### Log-Ablauf Classifier
+
+```
+14:45:01 | >>> CLASSIFIER-TRAINING
+14:45:01 |       100 Samples | 6 Klassen
+14:45:05 |       Cross-Validation Accuracy: 0.723 (+/- 0.031)
+```
+
+### Terminal-Progress-Bar (tqdm)
+
+Während des Trainings siehst du im Terminal live:
+
+```
+Epoch 1/3:  12%|██▌       | 284/2365 [00:15<01:48, 19.2batch/s]
+```
+
+Bedeutung:
+- `284/2365` = Batches in dieser Epoche
+- `00:15` = vergangene Zeit
+- `01:48` = geschätzte Restzeit
+- `19.2batch/s` = Geschwindigkeit
+
+### Interpretation
+
+```
+Loss sinkt von Epoche zu Epoche        → ✅ Modell lernt
+Loss = 0.0000                          → ❌ Overfitting (nur bei SimCSE)
+Accuracy > 0.7 (Classifier)            → ✅ Brauchbar
+Accuracy > 0.85 (Classifier)           → ✅ Sehr gut
+```
 
 ---
 

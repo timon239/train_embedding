@@ -159,6 +159,47 @@ pred = clf.predict([vec])[0]
 
 ---
 
+## Monitoring
+
+### Terminal (während des Trainings)
+
+```bash
+tail -f logs/train_*.log
+```
+
+**SimCSE-Log:**
+
+```
+Epoch 1, Batch 100/2365: Loss=0.0421 | 19.2 Bat/s | ETA: 14:52
+Epoch 1, Batch 200/2365: Loss=0.0312 | 19.5 Bat/s | ETA: 14:52
+Epoch 1 abgeschlossen: Avg Loss = 0.0412
+Epoch 2 abgeschlossen: Avg Loss = 0.0083
+Epoch 3 abgeschlossen: Avg Loss = 0.0047
+Modell gespeichert: models/mein_modell
+```
+
+tqdm im Terminal zeigt live:
+```
+Epoch 1/3:  12%|██▌       | 284/2365 [00:15<01:48, 19.2batch/s]
+```
+
+**Classifier-Log:**
+
+```
+Cross-Validation Accuracy: 0.723 (+/- 0.031)
+```
+
+### Interpretation
+
+| Beobachtung | Bedeutung |
+|-------------|-----------|
+| Loss sinkt epochal | ✅ Modell lernt |
+| Loss = 0.0000 | ❌ Overfitting (SimCSE) |
+| Accuracy > 0.7 | ✅ Brauchbar |
+| Accuracy > 0.85 | ✅ Sehr gut |
+
+---
+
 ## Projekt-Struktur
 
 ```
