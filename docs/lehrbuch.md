@@ -72,15 +72,17 @@ CONFIG = {
 | Parameter | Werte | Default | Erklärung |
 |-----------|-------|---------|-----------|
 | `model_name` | HuggingFace-ID | `intfloat/multilingual-e5-small` | Basis-Modell |
-| `output_path` | Pfad | `models/V1` | Speicherort |
+| `output_path` | Pfad | `models/mein_modell` | Speicherort |
 | `task` | `"simcse"` / `"classifier"` | `simcse` | Trainingsart |
 | `data_path` | Pfad | — | SimCSE: Satz/Zeile. Classifier: satz\\tlabel |
 | `data_delimiter` | String | `\t` | Trennzeichen für Classifier |
-| `batch_size` | 4–64 | `16` | Grösser = stabiler, mehr RAM |
-| `epochs` | 1–10 | `3` | Mehr = stärkere Anpassung |
-| `learning_rate` | 1e-6 – 5e-5 | `2e-5` | Schrittgrösse |
-| `max_seq_length` | 64–512 | `128` | Token-Limit pro Satz |
+| `batch_size` | 4–128 | `32` | Grösser = mehr Negative im Contrastive Loss = stabiler |
+| `epochs` | 1–3 | `1` | SimCSE: 1 reicht. Mehr = Collapse-Risiko |
+| `learning_rate` | 1e-6 – 5e-5 | `1e-5` | Schrittgrösse |
+| `weight_decay` | 0.0–0.1 | `0.01` | Bestrafung grosser Gewichte → verhindert Collapse |
 | `warmup_ratio` | 0.0–0.5 | `0.1` | LR-Aufwärmphase |
+| `max_seq_length` | 64–512 | `128` | Token-Limit pro Satz |
+| `contrastive_scale` | 1.0–50.0 | `5.0` | Schärfe des Contrastive Loss. Höher = aggressiver. Default 20.0 |
 | `device` | `"auto"`/`"mps"`/`"cpu"` | `auto` | MPS = Apple GPU |
 
 ### Schritt 2: Daten übersetzen (optional)

@@ -19,7 +19,7 @@ Modell und Dataset sind durch CONFIG vollständig austauschbar.
 CONFIG = {
     # --- Modell ---
     "model_name": "intfloat/multilingual-e5-small",
-    "output_path": "models/V1",
+    "output_path": "models/mein_modell",
 
     # --- Task ---
     # "simcse"       → Embedding-Training (unlabelierte Sätze)
@@ -31,11 +31,15 @@ CONFIG = {
     "data_delimiter": "\t",           # für classification: satz<TAB>label
 
     # --- Hyperparameter ---
-    "batch_size": 16,
-    "epochs": 3,
-    "learning_rate": 2e-5,
-    "max_seq_length": 128,
+    "batch_size": 32,
+    "epochs": 1,
+    "learning_rate": 1e-5,
+    "weight_decay": 0.01,             # Verhindert Overfitting/Collapse
     "warmup_ratio": 0.1,
+    "max_seq_length": 128,
+
+    # --- Contrastive Loss ---
+    "contrastive_scale": 5.0,         # Default 20.0 → weicher = weniger Collapse
 
     # --- Hardware ---
     "device": "auto",                 # "auto", "mps", "cpu"
@@ -145,8 +149,12 @@ def train_simcse(model: SentenceTransformer, cfg: dict):
         dataset, batch_size=cfg["batch_size"], shuffle=True, drop_last=True,
         collate_fn=lambda batch: list(zip(*batch)),
     )
-    loss_fn = MultipleNegativesRankingLoss(model)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=cfg["learning_rate"])
+    loss_fn = MultipleNegativesRankingLoss(model, scale=cfg.get("contrastive_scale", 20.0))
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=cfg["learning_rate"],
+        weight_decay=cfg.get("weight_decay", 0.0),
+    )
 
     total_steps = len(dataloader) * cfg["epochs"]
     warmup = int(total_steps * cfg["warmup_ratio"])
