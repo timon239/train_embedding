@@ -1,0 +1,45 @@
+# ── Data (raw data = copyright, NOT committed) ──
+data/**
+!data/**/
+!data/**/.gitkeep
+
+# ── Trained models ──
+models/
+my_vault_embedding/
+
+# ── Training logs ──
+logs/
+*.log
+
+# ── Python ──
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# ── Virtual environments ──
+venv/
+.venv/
+env/
+.env
+
+# ── IDE ──
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ── Jupyter ──
+.ipynb_checkpoints/
+
+# ── Misc ──
+checkpoints/
+frontend.swiftpm/
