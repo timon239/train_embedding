@@ -23,28 +23,30 @@ CONFIG = {
     "data_delimiter": "\t",       # Trennzeichen zwischen Text und Label
 
     # --- Modell ---
-    "model_name": "bert-base-german-cased",  # Oder: "bert-base-multilingual-cased", "xlm-roberta-base"
+    "model_name": "xlm-roberta-base",  # Oder: "bert-base-german-cased", "bert-base-multilingual-cased"
     "output_path": "models/text_classifier",
 
     # --- Hyperparameter ---
     "num_labels": 6,              # Anzahl Klassen (z.B. 6 für Bloom, 2 für Sentiment)
-    "epochs": 5,
+    "epochs": 10,
     "batch_size": 16,
-    "learning_rate": 3e-5,
+    "learning_rate": 2e-5,
     "max_seq_length": 128,
     "early_stopping_patience": 2, # Training stoppen wenn keine Verbesserung
+    "weight_decay": 0.01,          # L2-Regularisierung gegen Overfitting
 
     # --- Labels (optional, für --predict) ---
     "label_names": ["Erinnern", "Verstehen", "Anwenden", "Analysieren", "Bewerten", "Erschaffen"],
 
     # --- Hardware ---
-    "device": "auto",             # "auto", "mps", "cpu"
+    "device": "cpu",              # "auto", "mps", "cpu" — CPU ist stabiler
 }
 
 BIN = CONFIG  # Kurzform
 
 import os
 import sys
+import time
 import numpy as np
 from transformers import (
     AutoTokenizer, AutoModelForSequenceClassification,
@@ -52,7 +54,7 @@ from transformers import (
 )
 from datasets import Dataset
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, f1_score, classification_report
 import torch
 
 
@@ -121,22 +123,29 @@ def train():
         device = BIN["device"]
     model.to(device)
     print(f"Device: {device}")
+    t0 = time.time()
 
     # Tokenisierung
     def tokenize(batch):
         return tokenizer(batch["text"], padding="max_length",
                          truncation=True, max_length=BIN["max_seq_length"])
 
+    print("Tokenisiere Daten...")
     train_ds = Dataset.from_dict({"text": train_texts, "label": train_labels}).map(tokenize, batched=True)
     val_ds = Dataset.from_dict({"text": val_texts, "label": val_labels}).map(tokenize, batched=True)
 
     # Training
+    print(f"\nStarte Training ({BIN['epochs']} Epochen, {BIN['batch_size']} Batch)...")
+    print(f"  Pro Epoche: ~{len(train_ds)//BIN['batch_size']} Batches")
+    print()
+
     args = TrainingArguments(
         output_dir=BIN["output_path"],
         num_train_epochs=BIN["epochs"],
         per_device_train_batch_size=BIN["batch_size"],
         per_device_eval_batch_size=BIN["batch_size"],
         learning_rate=BIN["learning_rate"],
+        weight_decay=BIN["weight_decay"],
         eval_strategy="epoch",
         save_strategy="epoch",
         logging_strategy="epoch",
@@ -144,6 +153,7 @@ def train():
         metric_for_best_model="accuracy",
         save_total_limit=1,
         report_to="none",
+        disable_tqdm=False,
     )
 
     trainer = Trainer(
@@ -160,13 +170,37 @@ def train():
     trainer.save_model(BIN["output_path"])
     tokenizer.save_pretrained(BIN["output_path"])
 
-    # Finale Metriken
-    metrics = trainer.evaluate()
+    # Finale Auswertung auf dem Test-Split
     print(f"\n{'='*60}")
-    print(f"Beste Accuracy: {metrics['eval_accuracy']:.1%}")
-    print(f"Bester F1 (macro): {metrics['eval_f1_macro']:.3f}")
+    print("  FINALE AUSWERTUNG")
     print(f"{'='*60}")
-    print(f"\nModell: {BIN['output_path']}/")
+
+    val_preds = trainer.predict(val_ds)
+    val_logits = val_preds.predictions
+    val_pred_labels = np.argmax(val_logits, axis=-1)
+    y_true = val_preds.label_ids
+
+    acc = accuracy_score(y_true, val_pred_labels)
+    f1 = f1_score(y_true, val_pred_labels, average="macro")
+
+    print(f"  Accuracy:   {acc:.1%}")
+    print(f"  F1 (macro): {f1:.3f}")
+    print(f"  Dauer:      {time.time()-t0:.0f}s")
+    print()
+
+    # Per-Class Breakdown
+    names = BIN["label_names"]
+    from sklearn.metrics import classification_report
+    report = classification_report(y_true, val_pred_labels, target_names=names, digits=3)
+    print(report)
+
+    # Modell speichern
+    trainer.save_model(BIN["output_path"])
+    tokenizer.save_pretrained(BIN["output_path"])
+
+    print(f"{'='*60}")
+    print(f"  Modell gespeichert: {BIN['output_path']}/")
+    print(f"{'='*60}")
 
 
 # ============================================================
@@ -198,7 +232,15 @@ def predict(texts):
     for i, (text, pred) in enumerate(zip(texts, preds)):
         name = BIN["label_names"][pred] if pred < len(BIN["label_names"]) else str(pred)
         conf = probs[i][pred].item()
-        print(f"  → {name} ({conf:.0%})  |  {text[:70]}")
+        print(f"\n  Satz: {text}")
+        print(f"  → {name} ({conf:.0%})")
+        # Alle Wahrscheinlichkeiten als Balken
+        for j in range(len(BIN["label_names"])):
+            p = probs[i][j].item()
+            bar = "█" * int(p * 20)
+            label = BIN["label_names"][j] if j < len(BIN["label_names"]) else str(j)
+            marker = " ←" if j == pred else ""
+            print(f"    {label:<12} {p:>4.0%} {bar}{marker}")
     print(f"{'='*60}")
 
 

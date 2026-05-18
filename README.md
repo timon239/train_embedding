@@ -1,3 +1,4 @@
+
 # Embedding Training
 
 > Trainiere Embedding-Modelle auf deinen eigenen Texten — für Semantic Search,
@@ -108,19 +109,56 @@ Standard: `Helsinki-NLP/opus-mt-en-de` (EN→DE).
 
 ### `text_classifier.py`
 
-End-to-End Text-Klassifikation mit bert-base-german-cased.
-Lokal, einfach, genau. Erreicht ~75% auf Bloom-Taxonomie.
+End-to-End Text-Klassifikation per BERT-Fine-Tuning.
+Lokal, einfach, genau. Alle Hyperparameter werden oben im Script via
+`CONFIG` gesetzt (keine CLI-Flags).
 
 ```bash
 # Trainieren
 python3 scripts/text_classifier.py --train
 
-# Vorhersage
+# Vorhersage (einzelner Satz)
 python3 scripts/text_classifier.py --predict "Dein Text hier"
+
+# Vorhersage (interaktiv — ein Satz pro Zeile, Enter = predict)
+python3 scripts/text_classifier.py --predict
 ```
 
-**Parameter** (oben im Script via `CONFIG`): `data_path`, `model_name`,
-`num_labels`, `epochs`, `batch_size`, `learning_rate`, `label_names`.
+**Modus `--train`:**
+Lädt Daten aus `CONFIG["data_path"]` (Format: `text\tlabel`), splittet
+80/20, fine-tuned das Modell. Nach jeder Epoche Evaluation auf dem
+Val-Split. Early Stopping bricht ab, wenn `early_stopping_patience`
+Epochen keine Accuracy-Verbesserung bringen. Speichert das beste Modell
+unter `output_path`. Ausgabe am Ende: Accuracy, F1 (macro) und
+per-Class-Report.
+
+**Modus `--predict`:**
+Lädt das trainierte Modell von `output_path`. Tokenisiert den Eingabe-
+Text, führt einen Forward-Pass aus und zeigt:
+- **Vorhergesagte Klasse** mit Confidence (Softmax-Wahrscheinlichkeit)
+- **Balkendiagramm** aller Klassen-Wahrscheinlichkeiten (z. B.
+  `Erinnern  75% ███████████████  ←`)
+
+Im **interaktiven Modus** (`--predict` ohne Text) können beliebig viele
+Sätze nacheinander klassifiziert werden — eine Zeile = ein Satz.
+
+**Parameter (CONFIG):**
+
+| Parameter | Werte | Default | Erklärung |
+|-----------|-------|---------|-----------|
+| `data_path` | Pfad | `data/blooms/translated/de_bloom_classifier.txt` | Trainingsdaten (Text`\t`Label) |
+| `data_delimiter` | String | `\t` | Trennzeichen zwischen Text und Label |
+| `model_name` | HuggingFace-ID | `xlm-roberta-base` | Basis-Modell |
+| `output_path` | Pfad | `models/text_classifier` | Speicherort für Modell + Tokenizer |
+| `num_labels` | 2–10 | `6` | Anzahl Klassen |
+| `epochs` | 1–10 | `10` | Maximale Epochen; → HuggingFace `num_train_epochs` |
+| `batch_size` | 4–64 | `16` | Batch-Grösse |
+| `learning_rate` | 1e-6 – 5e-5 | `2e-5` | Lernrate |
+| `max_seq_length` | 64–512 | `128` | Token-Limit pro Satz |
+| `weight_decay` | 0.0–0.1 | `0.01` | L2-Regularisierung gegen Overfitting |
+| `early_stopping_patience` | 1–5 | `2` | Epochen ohne Verbesserung → Abbruch |
+| `label_names` | [String] | Bloom-Stufen | Für Predict-Ausgabe (nur Anzeige) |
+| `device` | `auto`/`mps`/`cpu` | `cpu` | CPU ist stabiler bei langem Training |
 
 | Ansatz | Genauigkeit | Geschwindigkeit | Script |
 |--------|-------------|-----------------|--------|
